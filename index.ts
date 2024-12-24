@@ -1,6 +1,5 @@
 import express, { Request, Response } from 'express';
 import bodyParser from 'body-parser';
-import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import { authenticate } from './middlewares/authenticate';
