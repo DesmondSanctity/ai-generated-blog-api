@@ -11,6 +11,14 @@ import {
 
 dotenv.config();
 
+// Environment variable validation
+const requiredEnvVars = ['SECRET_KEY', 'DATABASE_URL'] as const;
+for (const envVar of requiredEnvVars) {
+ if (!process.env[envVar]) {
+  throw new Error(`${envVar} environment variable is required`);
+ }
+}
+
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
