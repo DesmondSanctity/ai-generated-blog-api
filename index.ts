@@ -3,75 +3,66 @@ import bodyParser from 'body-parser';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import { authenticate } from './middlewares/authenticate';
+import {
+ validateCreatePost,
+ validatePagination,
+ validatePostId,
+} from './validations';
 
 dotenv.config();
+
+// Environment variable validation
+const requiredEnvVars = ['SECRET_KEY', 'DATABASE_URL'] as const;
+for (const envVar of requiredEnvVars) {
+ if (!process.env[envVar]) {
+  throw new Error(`${envVar} environment variable is required`);
+ }
+}
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.SECRET_KEY || 'your_secret_key';
 
 app.use(bodyParser.json());
 
 // Route to create a new blog post
-app.post('/posts', authenticate, async (req: Request, res: Response) => {
- const { title, body, tags, status } = req.body;
+app.post(
+ '/posts',
+ authenticate,
+ async (req: Request, res: Response): Promise<void> => {
+  const validationErrors = validateCreatePost(req.body);
+  if (validationErrors.length > 0) {
+   res.status(400).json({ errors: validationErrors });
+   return;
+  }
 
- if (!title || !body || !status) {
-  return res
-   .status(400)
-   .json({ message: 'Title, body, and status are required' });
- }
+  try {
+   const post = await prisma.post.create({
+    data: {
+     title: req.body.title,
+     body: req.body.body,
+     tags: req.body.tags,
+     status: req.body.status,
+     userId: req.user.id,
+    },
+   });
 
- if (status !== 'draft' && status !== 'published') {
-  return res
-   .status(400)
-   .json({ message: 'Status must be either draft or published' });
- }
-
- if (!Array.isArray(tags) || tags.some((tag) => typeof tag !== 'string')) {
-  return res.status(400).json({ message: 'Tags must be an array of strings' });
- }
-
- try {
-  const post = await prisma.post.create({
-   data: {
-    title,
-    body,
-    tags,
-    status,
-    userId: req.user.id,
-   },
-  });
-
-  res.status(201).json(post);
- } catch (error) {
-  if (error.code === 'P2002') {
-   // Prisma unique constraint error
-   res.status(400).json({ message: 'A post with this title already exists' });
-  } else {
-   console.error(error);
+   res.status(201).json(post);
+  } catch (error) {
    res
     .status(500)
     .json({ message: 'Unexpected error occurred while creating post' });
   }
  }
-});
+);
 
 // Route to get all published posts
-app.get('/posts', async (req: Request, res: Response) => {
- const { page = 1, limit = 10 } = req.query;
+app.get('/posts', async (req: Request, res: Response): Promise<void> => {
+ const { errors, pageNumber, limitNumber } = validatePagination(req.query);
 
- const pageNumber = parseInt(page as string, 10);
- const limitNumber = parseInt(limit as string, 10);
-
- if (
-  isNaN(pageNumber) ||
-  isNaN(limitNumber) ||
-  pageNumber < 1 ||
-  limitNumber < 1
- ) {
-  return res.status(400).json({ message: 'Invalid pagination parameters' });
+ if (errors.length > 0) {
+  res.status(400).json({ errors });
+  return;
  }
 
  try {
@@ -104,12 +95,12 @@ app.get('/posts', async (req: Request, res: Response) => {
 });
 
 // Route to get a single published post
-app.get('/posts/:id', async (req: Request, res: Response) => {
- const { id } = req.params;
+app.get('/posts/:id', async (req: Request, res: Response): Promise<void> => {
+ const { error, parsedId } = validatePostId(req.params.id);
 
- const parsedId = parseInt(id, 10);
- if (isNaN(parsedId)) {
-  return res.status(400).json({ message: 'Invalid post ID' });
+ if (error) {
+  res.status(400).json({ message: error });
+  return;
  }
 
  try {
@@ -118,7 +109,8 @@ app.get('/posts/:id', async (req: Request, res: Response) => {
   });
 
   if (!post || post.status !== 'published') {
-   return res.status(404).json({ message: 'Post not found' });
+   res.status(404).json({ message: 'Post not found' });
+   return;
   }
 
   res.status(200).json(post);
