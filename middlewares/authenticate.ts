@@ -4,29 +4,31 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const SECRET_KEY = process.env.SECRET_KEY || 'your_secret_key';
+const SECRET_KEY = process.env.SECRET_KEY!;
 
 export const authenticate = (
  req: Request,
  res: Response,
  next: NextFunction
-) => {
+): void => {
  const authHeader = req.headers.authorization;
 
  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-  return res.status(401).json({ message: 'Unauthorized: No token provided' });
+  res.status(401).json({ message: 'Unauthorized: No token provided' });
+  return;
  }
 
  const token = authHeader.split(' ')[1];
 
  try {
-  const decoded = jwt.verify(token, SECRET_KEY) as {
+  const decoded = jwt.verify(token, SECRET_KEY, { algorithms: ['HS256'] }) as {
    id: number;
    email: string;
   };
-  req.user = decoded; // Assuming `user` is added to `Request` type in `@types/express`
+  req.user = decoded;
   next();
  } catch (error) {
-  return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+   res.status(401).json({ message: 'Unauthorized: Invalid token' });
+   return;
  }
 };

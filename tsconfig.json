@@ -5,6 +5,21 @@
   "rootDir": "./",
   "outDir": "./dist",
   "strict": true,
-  "esModuleInterop": true
- }
+  "esModuleInterop": true,
+  "moduleResolution": "node",
+  "experimentalDecorators": true,
+  "emitDecoratorMetadata": true,
+  "skipLibCheck": true,
+  "forceConsistentCasingInFileNames": true,
+  "baseUrl": ".",
+  "paths": {
+   "@/*": ["*"],
+   "*": ["types/*"],
+   "@prisma/*": ["prisma/*"]
+  },
+  "types": ["node", "express"],
+  "typeRoots": ["./types", "./node_modules/@types"]
+ },
+ "include": ["**/*", "types/**/*", "prisma/**/*"],
+ "exclude": ["node_modules", "dist"]
 }
