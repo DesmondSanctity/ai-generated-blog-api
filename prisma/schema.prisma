@@ -32,5 +32,5 @@ model User {
   password  String
   posts     Post[]
   createdAt DateTime @default(now())
-  updated   DateTime @default(now()) @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 }
